@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facebook Video Downloader</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f7fc;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 400px;
+            text-align: center;
+        }
+        .container h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px;
+            width: 100%;
+            font-size: 16px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 20px;
+            color: green;
+        }
+        .error {
+            color: red;
+        }
+        .progress-bar-container {
+            width: 100%;
+            background: #f3f3f3;
+            border-radius: 10px;
+            height: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+        .progress-bar {
+            height: 100%;
+            background-color: #4caf50;
+            width: 0;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Facebook Video Downloader</h1>
+        <input type="text" id="videoUrl" placeholder="Enter Facebook Video URL">
+        <button onclick="downloadVideo()">Download Video</button>
+        <div id="message" class="result"></div>
+        <!-- Progress bar section -->
+        <div id="progressBarContainer" class="progress-bar-container">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+    </div>
+
+    <script>
+        function downloadVideo() {
+            const url = document.getElementById('videoUrl').value;
+            if (!url) {
+                alert("Please enter a video URL.");
+                return;
+            }
+
+            const messageDiv = document.getElementById('message');
+            const progressBarContainer = document.getElementById('progressBarContainer');
+            const progressBar = document.getElementById('progressBar');
+            progressBarContainer.style.display = 'block';  // Show progress bar
+            messageDiv.textContent = "Processing...";
+
+            fetch('/download', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `url=${encodeURIComponent(url)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    messageDiv.textContent = `Success: ${data.message}`;
+                    messageDiv.className = 'result';
+                } else {
+                    messageDiv.textContent = `Error: ${data.message}`;
+                    messageDiv.className = 'error';
+                }
+            })
+            .catch(error => {
+                messageDiv.textContent = "Error: Something went wrong.";
+                messageDiv.className = 'error';
+            });
+
+            // Listen for progress updates from Flask
+            const eventSource = new EventSource('/progress');  // SSE connection
+            eventSource.onmessage = function(event) {
+                const progressData = JSON.parse(event.data);
+                if (progressData.status === 'downloading') {
+                    const progress = (progressData.progress / progressData.total_bytes) * 100;
+                    progressBar.style.width = progress + '%';
+                }
+            };
+        }
+    </script>
+</body>
+</html>
